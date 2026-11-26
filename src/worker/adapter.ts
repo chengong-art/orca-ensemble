@@ -9,7 +9,7 @@ import { execFile, execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { homedir, platform } from "node:os";
 import { dirname, join } from "node:path";
-import { chatHandleFromPaneKey, chatSessionId, isChatHandle, parsePiModels, type Surface } from "../shared/agents";
+import { chatHandleFromPaneKey, chatSessionId, isChatHandle, parseOmpModels, parsePiModels, type Surface } from "../shared/agents";
 import { callerIs } from "./caller";
 
 /** The `orca` object Orca passes to the worker's activate(). Only what this plugin uses. */
@@ -435,18 +435,29 @@ export class OrcaAdapter {
   private modelLists = new Map<string, { at: number; models: string[] }>();
 
   /**
-   * The models an agent lists as `provider/id`: pi and omp (which shares pi's command line) print them with
-   * `--list-models`, run in a login shell so their own PATH applies. Cached for 5 minutes; empty when it can't be run.
+   * The model selectors an agent lists, run in a login shell so its own PATH applies. OMP 19 prints them as JSON
+   * (`omp models --json`); OMP before that, and pi, print the table `--list-models` gave. Cached for 5 minutes; empty
+   * when it can't be run.
    */
   async agentModels(agent: "pi" | "omp"): Promise<string[]> {
     const known = this.modelLists.get(agent);
     if (known && Date.now() - known.at < 5 * 60_000) return known.models;
     const shell = process.env.SHELL && existsSync(process.env.SHELL) ? process.env.SHELL : "/bin/zsh";
-    const models = await new Promise<string[]>((resolve) => {
-      execFile(shell, ["-lc", `${agent} --list-models`], { timeout: 20_000, maxBuffer: 4 * 1024 * 1024 }, (error, stdout) => resolve(error && !stdout ? [] : parsePiModels(String(stdout))));
-    });
+    let models = agent === "omp" ? await this.ompModelSelectors(shell) : null;
+    if (models === null) {
+      models = await new Promise<string[]>((resolve) => {
+        execFile(shell, ["-lc", `${agent} --list-models`], { timeout: 20_000, maxBuffer: 4 * 1024 * 1024 }, (error, stdout) => resolve(error && !stdout ? [] : parsePiModels(String(stdout))));
+      });
+    }
     this.modelLists.set(agent, { at: Date.now(), models });
     return models;
+  }
+
+  /** OMP 19's JSON catalog; null on an OMP that predates it, which uses the same table format as Pi. */
+  private ompModelSelectors(shell: string): Promise<string[] | null> {
+    return new Promise((resolve) => {
+      execFile(shell, ["-lc", "omp models --json"], { timeout: 20_000, maxBuffer: 4 * 1024 * 1024 }, (error, stdout) => resolve(error ? null : parseOmpModels(String(stdout))));
+    });
   }
 
   /** pi's models as `provider/id`. */

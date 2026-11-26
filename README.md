@@ -78,7 +78,7 @@ Orca plugins can't give agents new tools, so the plugin puts a command, `agent-t
 
 **Model lists.** Orca gives plugins no method for its model lists, so the worker reads them as Orca's own `orca` CLI does: it reads `orca-runtime.json` in Orca's profile folder (the local socket and its token) and sends one request, `agentSession.modelCatalog`, over that socket. It sends nothing else with the token, keeps no copy of it, and only connects to a socket owned by you. This is an Orca-internal request: if an Orca update changes it, the editor quietly falls back to the plugin's own suggestions.
 
-**Agents.** claude, codex, omp and grok open as chats by default; pi always runs in a terminal (its chat starts and does nothing). omp takes its own `provider/model` ids and roles; the team editor lists their models from Orca, like every agent's (falling back to `pi --list-models` when Orca has no list for pi).
+**Agents.** claude, codex, omp and grok open as chats by default; pi always runs in a terminal (its chat starts and does nothing). omp takes its own `provider/model` ids and roles; the team editor lists their models from Orca, like every agent's (falling back to `pi --list-models` when Orca has no list for pi, and reading omp's own catalog as `omp models --json` on OMP 19, `omp --list-models` before it).
 
 ### Requirements
 
@@ -205,7 +205,7 @@ Orca 插件不能给 agent 加工具，所以插件通过 `agent.launch.before` 
 
 **模型列表。** Orca 没有给插件提供读取模型列表的方法，所以 worker 按 Orca 自带的 `orca` 命令行的方式去读：读取 Orca 配置目录里的 `orca-runtime.json`（本地 socket 和它的 token），通过这个 socket 只发一个请求 `agentSession.modelCatalog`。插件不会用这个 token 发任何其他请求，也不保存它，只连接属于你本人的 socket。这是 Orca 的内部接口：如果 Orca 更新后它变了，编辑器会悄悄退回插件自带的建议值。
 
-**智能体。** claude、codex、omp、grok 默认以图形界面打开；pi 一律用命令行（它的聊天启动后不干活）。omp 使用它自己的 `provider/model` 和角色写法；团队编辑器里它们的模型和其他智能体一样来自 Orca（Orca 没有 pi 的列表时退回 `pi --list-models`）。
+**智能体。** claude、codex、omp、grok 默认以图形界面打开；pi 一律用命令行（它的聊天启动后不干活）。omp 使用它自己的 `provider/model` 和角色写法；团队编辑器里它们的模型和其他智能体一样来自 Orca（Orca 没有 pi 的列表时退回 `pi --list-models`，omp 自身目录按 `omp models --json`（OMP 19；更早为 `omp --list-models`）读取）。
 
 ### 要求
 

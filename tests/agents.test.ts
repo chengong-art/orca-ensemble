@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { callerHandle, chatHandleFromPaneKey, chatSessionId, cliModelArgs, isChatHandle, parsePiModels, resolvePiModel, surfaceOf, withFullAccess } from "../src/shared/agents";
+import { callerHandle, chatHandleFromPaneKey, chatSessionId, cliModelArgs, isChatHandle, parseOmpModels, parsePiModels, resolvePiModel, surfaceOf, withFullAccess } from "../src/shared/agents";
 
 describe("where an agent runs", () => {
   it("is a chat when its chat works, a terminal otherwise, and an explicit choice wins", () => {
@@ -69,6 +69,30 @@ describe("pi's models", () => {
     const missing = resolvePiModel("qwen-max", known);
     expect(missing.ok).toBe(false);
     expect(!missing.ok && missing.error).toBe("unknown");
+  });
+});
+
+describe("omp's models", () => {
+  // OMP 19 (`omp models --json`) keeps a model id's own slashes in the selector, which the old table split couldn't do.
+  const catalog = JSON.stringify({
+    models: [
+      { provider: "magpie", id: "codex/gpt-6.2-sol", selector: "magpie/codex/gpt-6.2-sol", name: "GPT-6.2 Sol" },
+      { provider: "magpie", id: "qoder/qfmodel", selector: "magpie/qoder/qfmodel", name: "Qwen 3.8 Flash" },
+      { provider: "anthropic", id: "claude-sonnet-4-5", selector: "anthropic/claude-sonnet-4-5" },
+      { provider: "magpie", id: "codex/gpt-6.2-sol", selector: "magpie/codex/gpt-6.2-sol" },
+    ],
+  });
+
+  it("reads whole selectors from the JSON catalog", () => {
+    expect(parseOmpModels(catalog)).toEqual(["magpie/codex/gpt-6.2-sol", "magpie/qoder/qfmodel", "anthropic/claude-sonnet-4-5"]);
+    expect(parseOmpModels(JSON.stringify({ models: [] }))).toEqual([]);
+  });
+
+  it("returns null for anything that is not the catalog, so the table is read instead", () => {
+    expect(parseOmpModels("")).toBeNull();
+    expect(parseOmpModels("provider     model    thinking\nanthropic    haiku    yes")).toBeNull();
+    expect(parseOmpModels(JSON.stringify({ error: "unknown flag" }))).toBeNull();
+    expect(parseOmpModels(JSON.stringify({ models: [{ provider: "magpie", id: "x" }] }))).toEqual([]);
   });
 });
 

@@ -138,6 +138,28 @@ export function parsePiModels(output: string): string[] {
   return [...new Set(models)];
 }
 
+/**
+ * The model selectors of `omp models --json`, which OMP 19 prints instead of the table `--list-models` gave. Null when
+ * the output is not that catalog, so a caller can fall back to the table. Selectors are kept whole: an OMP model id may
+ * itself contain a slash (`magpie/codex/gpt-6.2-sol`).
+ */
+export function parseOmpModels(output: string): string[] | null {
+  let catalog: unknown;
+  try {
+    catalog = JSON.parse(output);
+  } catch {
+    return null;
+  }
+  const rows = (catalog as { models?: unknown } | null)?.models;
+  if (!Array.isArray(rows)) return null;
+  const selectors = new Set<string>();
+  for (const row of rows) {
+    const selector = (row as { selector?: unknown } | null)?.selector;
+    if (typeof selector === "string" && selector.trim()) selectors.add(selector.trim());
+  }
+  return [...selectors];
+}
+
 export type PiModelChoice = { ok: true; model: string } | { ok: false; error: string; matches: string[] };
 
 /**
